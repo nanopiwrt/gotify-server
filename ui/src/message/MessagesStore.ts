@@ -1,5 +1,5 @@
 import {BaseStore} from '../common/BaseStore';
-import {action, IObservableArray, observable, reaction, makeObservable} from 'mobx';
+import {action, IObservableArray, observable, reaction, makeObservable, runInAction} from 'mobx';
 import axios, {AxiosResponse} from 'axios';
 import * as config from '../config';
 import {createTransformer} from 'mobx-utils';
@@ -59,10 +59,12 @@ export class MessagesStore {
             const pagedResult = await this.fetchMessages(appId, state.nextSince).then(
                 (resp) => resp.data
             );
-            state.messages.replace([...state.messages, ...pagedResult.messages]);
-            state.nextSince = pagedResult.paging.since ?? 0;
-            state.hasMore = 'next' in pagedResult.paging;
-            state.loaded = true;
+            runInAction(() => {
+                state.messages.replace([...state.messages, ...pagedResult.messages]);
+                state.nextSince = pagedResult.paging.since ?? 0;
+                state.hasMore = 'next' in pagedResult.paging;
+                state.loaded = true;
+            });
         } finally {
             this.loading = false;
         }
@@ -135,6 +137,7 @@ export class MessagesStore {
 
     public exists = (id: number) => this.stateOf(id).loaded;
 
+    @action
     private removeFromList(messages: IMessage[], messageToDelete: IMessage): false | number {
         if (messages) {
             const index = messages.findIndex((message) => message.id === messageToDelete.id);
@@ -146,6 +149,7 @@ export class MessagesStore {
         return false;
     }
 
+    @action
     private clear = (appId: number) => (this.state[appId] = this.emptyState());
 
     private fetchMessages = (
